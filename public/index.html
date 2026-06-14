@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neo DLC — Панель управления</title>
+    <link rel="icon" type="image/png" href="/neodlc.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -202,10 +203,15 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
-            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><path fill='white' d='M7 9L3 5h8z'/></svg>");
-            background-repeat: no-repeat;
-            background-position: right 0.8rem center;
             font-family: inherit;
+        }
+        select[multiple] {
+            background-image: none;
+            min-height: 120px;
+        }
+        select option:checked {
+            background: #fff;
+            color: #000;
         }
         textarea { resize: vertical; min-height: 80px; background-image: none; }
         select:focus, textarea:focus, input:focus {
@@ -298,7 +304,6 @@
 <body>
 
     <canvas id="particles-canvas"></canvas>
-
     <div id="forbidden-overlay">НЕВЕРНЫЙ КЛЮЧ</div>
 
     <div class="sidebar">
@@ -321,6 +326,10 @@
         <div class="tab" data-panel="tickets">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M20 12V6H4v6a2 2 0 100 4v6h16v-6a2 2 0 100-4z"/><path d="M14 12h.01"/></svg>
             Тикеты
+        </div>
+        <div class="tab" data-panel="moderation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/><path d="M9 12l2 2 4-4"/></svg>
+            Модерация
         </div>
     </div>
 
@@ -351,10 +360,8 @@
             </h1>
             <label>Роль Member (выдаётся всем новым)</label>
             <select id="memberRoleId"><option value="">-- не выбрана --</option></select>
-
             <label>Роль Unverified (выдаётся при включённой верификации)</label>
             <select id="unverifiedRoleId"><option value="">-- не выбрана --</option></select>
-
             <button id="saveAutoroleBtn">СОХРАНИТЬ</button>
             <div class="save-status" id="status-autorole"></div>
         </div>
@@ -394,14 +401,28 @@
             <button id="saveTicketsBtn">СОХРАНИТЬ</button>
             <div class="save-status" id="status-tickets"></div>
         </div>
+
+        <!-- Модерация -->
+        <div class="content-panel hidden" id="panel-moderation">
+            <h1>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/><path d="M9 12l2 2 4-4"/></svg>
+                Модерация
+            </h1>
+            <div class="toggle-group">
+                <label>Ограничить модерацию</label>
+                <label class="switch"><input type="checkbox" id="moderationEnabled"><span class="slider"></span></label>
+            </div>
+            <label>Роли модераторов (множественный выбор)</label>
+            <select id="moderationRoles" multiple>
+                <option value="">-- загружаются --</option>
+            </select>
+            <button id="saveModerationBtn">СОХРАНИТЬ</button>
+            <div class="save-status" id="status-moderation"></div>
+        </div>
     </div>
 
     <script>
-        // ===== СТРОГАЯ ПРОВЕРКА КЛЮЧА ТОЛЬКО ИЗ АДРЕСНОЙ СТРОКИ =====
-        const urlParams = new URLSearchParams(window.location.search);
-        const API_KEY = urlParams.get('key');
-
-        // Если ключа нет – сразу показываем оверлей и скрываем интерфейс
+        const API_KEY = new URLSearchParams(window.location.search).get('key');
         if (!API_KEY) {
             document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('forbidden-overlay').classList.add('show');
@@ -411,19 +432,16 @@
         } else {
             sessionStorage.setItem('api_key', API_KEY);
         }
-
-        // Для запросов всегда используем сохранённый ключ
         const key = sessionStorage.getItem('api_key') || API_KEY;
         const headers = { 'Content-Type': 'application/json' };
 
-        // ===== ФУНКЦИЯ ОТОБРАЖЕНИЯ ОВЕРЛЕЯ ПРИ 403 =====
         function showForbidden() {
             document.getElementById('forbidden-overlay').classList.add('show');
             document.querySelector('.sidebar').style.display = 'none';
             document.querySelector('.main').style.display = 'none';
         }
 
-        // ===== ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК =====
+        // переключение вкладок
         const tabs = document.querySelectorAll('.sidebar .tab');
         const panels = document.querySelectorAll('.content-panel');
         tabs.forEach(tab => {
@@ -436,27 +454,35 @@
             });
         });
 
-        // ===== ПЕРЕМЕННЫЕ ДЛЯ ФОРМ =====
+        // Приветствие
         const welcomeEnabledCheck = document.getElementById('welcomeEnabled');
         const welcomeChannelSelect = document.getElementById('welcomeChannelId');
         const welcomeMessageText = document.getElementById('welcomeMessage');
         const statusWelcome = document.getElementById('status-welcome');
 
+        // Автороль
         const memberRoleSelect = document.getElementById('memberRoleId');
         const unverifiedRoleSelect = document.getElementById('unverifiedRoleId');
         const statusAutorole = document.getElementById('status-autorole');
 
+        // Verify
         const verifyEnabledCheck = document.getElementById('verifyEnabled');
         const verifyChannelSelect = document.getElementById('verifyChannelId');
         const verifiedRoleSelect = document.getElementById('verifiedRoleId');
         const statusVerify = document.getElementById('status-verify');
 
+        // Тикеты
         const ticketEnabledCheck = document.getElementById('ticketEnabled');
         const ticketChannelSelect = document.getElementById('ticketChannelId');
         const ticketCategorySelect = document.getElementById('ticketCategoryId');
         const statusTickets = document.getElementById('status-tickets');
 
-        // ===== ЗАГРУЗКА ДАННЫХ С ПРОВЕРКОЙ НА 403 =====
+        // Модерация
+        const moderationEnabledCheck = document.getElementById('moderationEnabled');
+        const moderationRolesSelect = document.getElementById('moderationRoles');
+        const statusModeration = document.getElementById('status-moderation');
+
+        // Утилиты
         async function loadChannels(selectElement) {
             const url = `/api/channels?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
@@ -470,13 +496,17 @@
             });
         }
 
-        async function loadRoles(selectElement) {
+        async function loadRoles(selectElement, isMultiple = false) {
             const url = `/api/roles?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
             if (res.status === 403) { showForbidden(); return; }
             if (!res.ok) throw new Error('Ошибка загрузки ролей');
             const roles = await res.json();
-            selectElement.innerHTML = '<option value="">-- без роли --</option>';
+            if (!isMultiple) {
+                selectElement.innerHTML = '<option value="">-- без роли --</option>';
+            } else {
+                selectElement.innerHTML = '';
+            }
             roles.forEach(r => {
                 const opt = document.createElement('option'); opt.value = r.id; opt.textContent = r.name;
                 selectElement.appendChild(opt);
@@ -496,11 +526,11 @@
             });
         }
 
+        // Загрузка конфигов
         async function loadWelcomeConfig() {
             const url = `/api/config?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
             if (res.status === 403) { showForbidden(); return; }
-            if (!res.ok) throw new Error('Доступ запрещён.');
             const cfg = await res.json();
             welcomeEnabledCheck.checked = cfg.welcomeEnabled !== false;
             if (cfg.welcomeChannelId) welcomeChannelSelect.value = cfg.welcomeChannelId;
@@ -511,7 +541,6 @@
             const url = `/api/config?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
             if (res.status === 403) { showForbidden(); return; }
-            if (!res.ok) throw new Error('Доступ запрещён.');
             const cfg = await res.json();
             if (cfg.memberRoleId) memberRoleSelect.value = cfg.memberRoleId;
             if (cfg.unverifiedRoleId) unverifiedRoleSelect.value = cfg.unverifiedRoleId;
@@ -521,7 +550,6 @@
             const url = `/api/verifysettings?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
             if (res.status === 403) { showForbidden(); return; }
-            if (!res.ok) throw new Error('Доступ запрещён');
             const cfg = await res.json();
             verifyEnabledCheck.checked = cfg.verifyEnabled === true;
             if (cfg.verifyChannelId) verifyChannelSelect.value = cfg.verifyChannelId;
@@ -532,14 +560,26 @@
             const url = `/api/ticketsettings?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
             if (res.status === 403) { showForbidden(); return; }
-            if (!res.ok) throw new Error('Доступ запрещён');
             const cfg = await res.json();
             ticketEnabledCheck.checked = cfg.ticketEnabled === true;
             if (cfg.ticketChannelId) ticketChannelSelect.value = cfg.ticketChannelId;
             if (cfg.ticketCategoryId) ticketCategorySelect.value = cfg.ticketCategoryId;
         }
 
-        // ===== СОХРАНЕНИЕ =====
+        async function loadModerationConfig() {
+            const url = `/api/moderation?key=${encodeURIComponent(key)}`;
+            const res = await fetch(url, { headers });
+            if (res.status === 403) { showForbidden(); return; }
+            const cfg = await res.json();
+            moderationEnabledCheck.checked = cfg.moderationEnabled === true;
+            if (cfg.moderationRoles && Array.isArray(cfg.moderationRoles)) {
+                for (const opt of moderationRolesSelect.options) {
+                    opt.selected = cfg.moderationRoles.includes(opt.value);
+                }
+            }
+        }
+
+        // Сохранение
         async function saveWelcomeConfig() {
             const body = {
                 welcomeEnabled: welcomeEnabledCheck.checked,
@@ -549,7 +589,6 @@
             const url = `/api/config?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
             if (res.status === 403) { showStatus(statusWelcome, 'Неверный ключ', false); return; }
-            if (!res.ok) throw new Error('Ошибка сохранения');
             const data = await res.json();
             showStatus(statusWelcome, data.success ? '✅ Настройки сохранены!' : '❌ Ошибка', data.success);
         }
@@ -562,7 +601,6 @@
             const url = `/api/config?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
             if (res.status === 403) { showStatus(statusAutorole, 'Неверный ключ', false); return; }
-            if (!res.ok) throw new Error('Ошибка сохранения');
             const data = await res.json();
             showStatus(statusAutorole, data.success ? '✅ Настройки сохранены!' : '❌ Ошибка', data.success);
         }
@@ -576,7 +614,6 @@
             const url = `/api/verifysettings?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
             if (res.status === 403) { showStatus(statusVerify, 'Неверный ключ', false); return; }
-            if (!res.ok) throw new Error('Ошибка сохранения');
             const data = await res.json();
             showStatus(statusVerify, data.success ? '✅ Настройки сохранены!' : '❌ Ошибка', data.success);
         }
@@ -590,9 +627,21 @@
             const url = `/api/ticketsettings?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
             if (res.status === 403) { showStatus(statusTickets, 'Неверный ключ', false); return; }
-            if (!res.ok) throw new Error('Ошибка сохранения');
             const data = await res.json();
             showStatus(statusTickets, data.success ? '✅ Настройки сохранены!' : '❌ Ошибка', data.success);
+        }
+
+        async function saveModerationConfig() {
+            const selectedRoles = Array.from(moderationRolesSelect.selectedOptions).map(opt => opt.value);
+            const body = {
+                moderationEnabled: moderationEnabledCheck.checked,
+                moderationRoles: selectedRoles
+            };
+            const url = `/api/moderation?key=${encodeURIComponent(key)}`;
+            const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+            if (res.status === 403) { showStatus(statusModeration, 'Неверный ключ', false); return; }
+            const data = await res.json();
+            showStatus(statusModeration, data.success ? '✅ Настройки сохранены!' : '❌ Ошибка', data.success);
         }
 
         function showStatus(element, msg, ok) {
@@ -641,17 +690,12 @@
         }
         initParticles(); animateParticles();
 
-        // ===== ИНИЦИАЛИЗАЦИЯ =====
+        // Инициализация
         async function init() {
-            if (!API_KEY) return; // уже показан оверлей
-
-            // проверяем ключ тестовым запросом
+            if (!API_KEY) return;
             const testUrl = `/api/config?key=${encodeURIComponent(key)}`;
             const testRes = await fetch(testUrl, { headers });
-            if (testRes.status === 403) {
-                showForbidden();
-                return;
-            }
+            if (testRes.status === 403) { showForbidden(); return; }
 
             await Promise.all([
                 loadChannels(welcomeChannelSelect),
@@ -660,6 +704,7 @@
                 loadRoles(memberRoleSelect),
                 loadRoles(unverifiedRoleSelect),
                 loadRoles(verifiedRoleSelect),
+                loadRoles(moderationRolesSelect, true),
                 loadCategories(ticketCategorySelect)
             ]);
 
@@ -667,11 +712,13 @@
             await loadAutoroleConfig();
             await loadVerifyConfig();
             await loadTicketsConfig();
+            await loadModerationConfig();
 
             document.getElementById('saveWelcomeBtn').addEventListener('click', saveWelcomeConfig);
             document.getElementById('saveAutoroleBtn').addEventListener('click', saveAutoroleConfig);
             document.getElementById('saveVerifyBtn').addEventListener('click', saveVerifyConfig);
             document.getElementById('saveTicketsBtn').addEventListener('click', saveTicketsConfig);
+            document.getElementById('saveModerationBtn').addEventListener('click', saveModerationConfig);
         }
         window.addEventListener('load', init);
     </script>
