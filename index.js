@@ -41,7 +41,9 @@ try {
     verifyEnabled: false,
     verifyChannelId: '',
     verifiedRoleId: '',
-    verifyMessageId: null
+    verifyMessageId: null,
+    moderationEnabled: false,
+    moderationRoles: []
   };
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
@@ -58,7 +60,7 @@ const client = new Client({
   ]
 });
 
-// -------- Функция обновления панели верификации --------
+// -------- Обновление панели верификации --------
 async function updateVerifyPanel() {
   try {
     const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -96,7 +98,7 @@ async function updateVerifyPanel() {
   }
 }
 
-// -------- Функция обновления тикет-панели --------
+// -------- Обновление тикет-панели --------
 async function updateTicketPanel() {
   try {
     const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -203,12 +205,12 @@ client.on('ready', () => {
   updateVerifyPanel();
 });
 
-// ===== ГЛАВНОЕ ИСПРАВЛЕНИЕ: ВЫДАЧА РОЛЕЙ =====
+// -------- АВТО‑РОЛЬ + ВЕРИФИКАЦИЯ ПРИ ВХОДЕ --------
 client.on('guildMemberAdd', async member => {
   let cfg;
   try { cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8')); } catch { cfg = config; }
 
-  // 1. Member — ВСЕГДА, если задан (независимо от верификации)
+  // Member всегда, если задан
   if (cfg.memberRoleId) {
     const memberRole = member.guild.roles.cache.get(cfg.memberRoleId);
     if (memberRole && !memberRole.managed && memberRole.editable) {
@@ -221,11 +223,9 @@ client.on('guildMemberAdd', async member => {
     } else {
       console.warn(`⚠️ Роль Member ${cfg.memberRoleId} недоступна.`);
     }
-  } else {
-    console.log(`ℹ️ memberRoleId не задан – роль Member не выдаётся.`);
   }
 
-  // 2. Unverified — только если включена верификация и задан
+  // Unverified только если верификация включена
   if (cfg.verifyEnabled && cfg.unverifiedRoleId) {
     const unverifiedRole = member.guild.roles.cache.get(cfg.unverifiedRoleId);
     if (unverifiedRole && !unverifiedRole.managed && unverifiedRole.editable) {
@@ -240,7 +240,7 @@ client.on('guildMemberAdd', async member => {
     }
   }
 
-  // 3. Приветствие
+  // Приветствие
   if (cfg.welcomeEnabled && cfg.welcomeChannelId) {
     const channel = member.guild.channels.cache.get(cfg.welcomeChannelId);
     if (channel?.isTextBased()) {
@@ -250,11 +250,25 @@ client.on('guildMemberAdd', async member => {
   }
 });
 
-// Обработчик команд и кнопок
+// -------- ОБРАБОТЧИК КОМАНД + ПРОВЕРКА РОЛЕЙ МОДЕРАЦИИ --------
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
-    const { commandName, options, guild } = interaction;
+    const { commandName, options, guild, member } = interaction;
     if (!guild) return interaction.reply({ content: 'Команды только на сервере.', flags: MessageFlags.Ephemeral });
+
+    // === ПРОВЕРКА РОЛЕЙ МОДЕРАЦИИ ===
+    const moderationCommands = ['ban', 'unban', 'kick', 'warn', 'warnings', 'clear', 'mute', 'unmute', 'slowmode', 'lock', 'unlock', 'banlist'];
+    if (moderationCommands.includes(commandName)) {
+      try {
+        const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        if (cfg.moderationEnabled && cfg.moderationRoles && cfg.moderationRoles.length > 0) {
+          const hasRole = member.roles.cache.some(role => cfg.moderationRoles.includes(role.id));
+          if (!hasRole) {
+            return interaction.reply({ content: '❌ У вас нет разрешённой роли для выполнения этой команды.', flags: MessageFlags.Ephemeral });
+          }
+        }
+      } catch (e) {}
+    }
 
     try {
       if (commandName === 'ban') {
@@ -384,7 +398,7 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // Кнопка "Создать тикет"
+  // Кнопки тикетов
   if (interaction.isButton()) {
     if (interaction.customId === 'create_ticket') {
       const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
