@@ -1,0 +1,17 @@
+{
+  "welcomeChannelId": "1515401383212220577",
+  "autoroleId": "1515603847630950441",
+  "welcomeEnabled": true,
+  "welcomeMessage": "Привет {user}! Ты попал в дискорд сервер нашего чита Neo DLC. Желаю тебе хорошо провести время!",
+  "ticketEnabled": true,
+  "ticketChannelId": "1515409915546697870",
+  "ticketCategoryId": "1515409459998888158",
+  "ticketMessageId": "1515595088665772135",
+  "verifyEnabled": true,
+  "verifyChannelId": "1515603449725845544",
+  "unverifiedRoleId": "1515603847630950441",
+  "verifiedRoleId": "1515603987842203749",
+  "verifyMessageId": "1515605197714493520",
+  "autoroleEnabled": true,
+  "memberRoleId": "1515573748722434088"
+}
