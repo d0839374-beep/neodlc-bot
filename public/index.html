@@ -42,9 +42,7 @@
             color: #fff;
             opacity: 0.9;
         }
-        #forbidden-overlay.show {
-            display: flex;
-        }
+        #forbidden-overlay.show { display: flex; }
 
         .sidebar {
             width: 260px;
@@ -121,18 +119,14 @@
             background: rgba(255,255,255,0.05);
             border-color: rgba(255,255,255,0.4);
         }
-        .sidebar .tab:hover svg {
-            stroke: #fff;
-        }
+        .sidebar .tab:hover svg { stroke: #fff; }
         .sidebar .tab.active {
             color: #fff;
             background: rgba(255,255,255,0.08);
             border-color: rgba(255,255,255,0.7);
             font-weight: 500;
         }
-        .sidebar .tab.active svg {
-            stroke: #fff;
-        }
+        .sidebar .tab.active svg { stroke: #fff; }
 
         .main {
             flex: 1;
@@ -207,7 +201,7 @@
         }
         select[multiple] {
             background-image: none;
-            min-height: 120px;
+            min-height: 80px;
         }
         select option:checked {
             background: #fff;
@@ -274,9 +268,7 @@
             background: rgba(255,255,255,0.05);
             transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        button:hover::before {
-            left: 0;
-        }
+        button:hover::before { left: 0; }
         button:hover {
             border-color: #fff;
             box-shadow: 0 0 25px rgba(255,255,255,0.15);
@@ -378,7 +370,7 @@
             </div>
             <label>Канал для верификации</label>
             <select id="verifyChannelId"><option value="">-- выберите канал --</option></select>
-            <label>Роль "Verified" (выдаётся после подтверждения)</label>
+            <label>Роль "Verified"</label>
             <select id="verifiedRoleId"><option value="">-- выберите роль --</option></select>
             <button id="saveVerifyBtn">СОХРАНИТЬ</button>
             <div class="save-status" id="status-verify"></div>
@@ -412,10 +404,34 @@
                 <label>Ограничить модерацию</label>
                 <label class="switch"><input type="checkbox" id="moderationEnabled"><span class="slider"></span></label>
             </div>
-            <label>Роли модераторов (множественный выбор)</label>
-            <select id="moderationRoles" multiple>
-                <option value="">-- загружаются --</option>
-            </select>
+
+            <label>Роли для /ban</label>
+            <select id="mod_ban" multiple></select>
+
+            <label>Роли для /kick</label>
+            <select id="mod_kick" multiple></select>
+
+            <label>Роли для /mute</label>
+            <select id="mod_mute" multiple></select>
+
+            <label>Роли для /warn</label>
+            <select id="mod_warn" multiple></select>
+
+            <label>Роли для /clear</label>
+            <select id="mod_clear" multiple></select>
+
+            <label>Роли для /lock</label>
+            <select id="mod_lock" multiple></select>
+
+            <label>Роли для /unlock</label>
+            <select id="mod_unlock" multiple></select>
+
+            <label>Роли для /slowmode</label>
+            <select id="mod_slowmode" multiple></select>
+
+            <label>Роли для /banlist</label>
+            <select id="mod_banlist" multiple></select>
+
             <button id="saveModerationBtn">СОХРАНИТЬ</button>
             <div class="save-status" id="status-moderation"></div>
         </div>
@@ -479,10 +495,20 @@
 
         // Модерация
         const moderationEnabledCheck = document.getElementById('moderationEnabled');
-        const moderationRolesSelect = document.getElementById('moderationRoles');
+        const moderationSelects = {
+            ban: document.getElementById('mod_ban'),
+            kick: document.getElementById('mod_kick'),
+            mute: document.getElementById('mod_mute'),
+            warn: document.getElementById('mod_warn'),
+            clear: document.getElementById('mod_clear'),
+            lock: document.getElementById('mod_lock'),
+            unlock: document.getElementById('mod_unlock'),
+            slowmode: document.getElementById('mod_slowmode'),
+            banlist: document.getElementById('mod_banlist')
+        };
         const statusModeration = document.getElementById('status-moderation');
 
-        // Утилиты
+        // Утилиты загрузки
         async function loadChannels(selectElement) {
             const url = `/api/channels?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
@@ -496,17 +522,13 @@
             });
         }
 
-        async function loadRoles(selectElement, isMultiple = false) {
+        async function loadRolesIntoSelect(selectElement) {
             const url = `/api/roles?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
             if (res.status === 403) { showForbidden(); return; }
             if (!res.ok) throw new Error('Ошибка загрузки ролей');
             const roles = await res.json();
-            if (!isMultiple) {
-                selectElement.innerHTML = '<option value="">-- без роли --</option>';
-            } else {
-                selectElement.innerHTML = '';
-            }
+            selectElement.innerHTML = '';
             roles.forEach(r => {
                 const opt = document.createElement('option'); opt.value = r.id; opt.textContent = r.name;
                 selectElement.appendChild(opt);
@@ -572,9 +594,11 @@
             if (res.status === 403) { showForbidden(); return; }
             const cfg = await res.json();
             moderationEnabledCheck.checked = cfg.moderationEnabled === true;
-            if (cfg.moderationRoles && Array.isArray(cfg.moderationRoles)) {
-                for (const opt of moderationRolesSelect.options) {
-                    opt.selected = cfg.moderationRoles.includes(opt.value);
+            const rolesMap = cfg.moderationRoles || {};
+            for (const [cmd, select] of Object.entries(moderationSelects)) {
+                const allowed = rolesMap[cmd] || [];
+                for (const opt of select.options) {
+                    opt.selected = allowed.includes(opt.value);
                 }
             }
         }
@@ -632,10 +656,13 @@
         }
 
         async function saveModerationConfig() {
-            const selectedRoles = Array.from(moderationRolesSelect.selectedOptions).map(opt => opt.value);
+            const moderationRoles = {};
+            for (const [cmd, select] of Object.entries(moderationSelects)) {
+                moderationRoles[cmd] = Array.from(select.selectedOptions).map(opt => opt.value);
+            }
             const body = {
                 moderationEnabled: moderationEnabledCheck.checked,
-                moderationRoles: selectedRoles
+                moderationRoles
             };
             const url = `/api/moderation?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -701,10 +728,10 @@
                 loadChannels(welcomeChannelSelect),
                 loadChannels(verifyChannelSelect),
                 loadChannels(ticketChannelSelect),
-                loadRoles(memberRoleSelect),
-                loadRoles(unverifiedRoleSelect),
-                loadRoles(verifiedRoleSelect),
-                loadRoles(moderationRolesSelect, true),
+                loadRolesIntoSelect(memberRoleSelect),
+                loadRolesIntoSelect(unverifiedRoleSelect),
+                loadRolesIntoSelect(verifiedRoleSelect),
+                ...Object.values(moderationSelects).map(select => loadRolesIntoSelect(select)),
                 loadCategories(ticketCategorySelect)
             ]);
 
