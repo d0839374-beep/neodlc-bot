@@ -327,7 +327,6 @@
         .custom-select.open .dropdown {
             display: block;
         }
-        /* Одиночный выбор */
         .custom-select .dropdown .option {
             padding: 0.6rem 1rem;
             cursor: pointer;
@@ -602,8 +601,6 @@
         ];
 
         let allRoles = [];
-        let allChannels = [];
-        let allCategories = [];
 
         // Инициализация одиночного кастомного списка
         function initSingleSelect(container) {
@@ -671,22 +668,21 @@
                 container.classList.toggle('open');
             });
 
-            container.setItems = (items, selectedIds = []) => {
+            // Заполнение ролями (вызовем отдельно)
+            container.populateRoles = (roles) => {
                 dropdown.innerHTML = '';
-                items.forEach(item => {
+                roles.forEach(role => {
                     const label = document.createElement('label');
                     const cb = document.createElement('input');
                     cb.type = 'checkbox';
-                    cb.value = item.id;
-                    cb.checked = selectedIds.includes(item.id);
+                    cb.value = role.id;
                     cb.addEventListener('change', () => {
                         updateMultiText(container);
                     });
                     label.appendChild(cb);
-                    label.appendChild(document.createTextNode(item.name));
+                    label.appendChild(document.createTextNode(role.name));
                     dropdown.appendChild(label);
                 });
-                updateMultiText(container);
             };
 
             container.getSelectedIds = () => {
@@ -722,7 +718,6 @@
             if (res.status === 403) { showForbidden(); return; }
             if (!res.ok) throw new Error('Ошибка загрузки каналов');
             const channels = await res.json();
-            allChannels = channels;
             selectElement.setItems(channels, '-- выберите канал --');
         }
 
@@ -734,10 +729,7 @@
             const roles = await res.json();
             allRoles = roles;
             selectElement.setItems(roles, defaultText);
-            // обновим множественные списки
-            for (const container of Object.values(customSelectsMulti)) {
-                container.setItems(roles, []); // при загрузке ролей сбрасываем выбор
-            }
+            // Больше не трогаем множественные списки здесь
         }
 
         async function loadCategories(selectElement) {
@@ -746,7 +738,6 @@
             if (res.status === 403) { showForbidden(); return; }
             if (!res.ok) throw new Error('Ошибка загрузки категорий');
             const categories = await res.json();
-            allCategories = categories;
             selectElement.setItems(categories, '-- выберите категорию --');
         }
 
@@ -934,8 +925,12 @@
                 loadCategories(ticketCategorySelect)
             ]);
 
-            // Обновляем роли в множественных списках ещё раз после полной загрузки
-            // (они уже были сброшены внутри loadRoles, теперь загрузим сохранённые значения)
+            // Теперь, когда allRoles заполнен, заполняем множественные списки ролями (без сброса выбора)
+            for (const container of Object.values(customSelectsMulti)) {
+                container.populateRoles(allRoles);
+            }
+
+            // Загружаем остальные конфиги, включая модерацию (установит галочки)
             await loadWelcomeConfig();
             await loadAutoroleConfig();
             await loadVerifyConfig();
