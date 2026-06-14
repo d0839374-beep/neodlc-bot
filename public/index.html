@@ -343,29 +343,6 @@
             color: #fff;
             font-weight: 500;
         }
-        /* Множественный выбор */
-        .custom-select-multi .dropdown label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1rem;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: #ccc;
-            margin: 0;
-            text-transform: none;
-            letter-spacing: normal;
-            transition: background 0.2s;
-        }
-        .custom-select-multi .dropdown label:hover {
-            background: rgba(255,255,255,0.05);
-            color: #fff;
-        }
-        .custom-select-multi .dropdown input[type="checkbox"] {
-            accent-color: #fff;
-            width: 16px;
-            height: 16px;
-        }
 
         @keyframes fadeSlideIn {
             from { opacity: 0; transform: translateY(12px); }
@@ -400,10 +377,6 @@
             <div class="tab" data-panel="tickets">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M20 12V6H4v6a2 2 0 100 4v6h16v-6a2 2 0 100-4z"/><path d="M14 12h.01"/></svg>
                 Тикеты
-            </div>
-            <div class="tab" data-panel="moderation">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/><path d="M9 12l2 2 4-4"/></svg>
-                Модерация
             </div>
         </div>
 
@@ -475,48 +448,6 @@
                 <button id="saveTicketsBtn">СОХРАНИТЬ</button>
                 <div class="save-status" id="status-tickets"></div>
             </div>
-
-            <!-- Модерация -->
-            <div class="content-panel hidden" id="panel-moderation">
-                <h1>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/><path d="M9 12l2 2 4-4"/></svg>
-                    Модерация
-                </h1>
-                <div class="toggle-group">
-                    <label>Ограничить модерацию</label>
-                    <label class="switch"><input type="checkbox" id="moderationEnabled"><span class="slider"></span></label>
-                </div>
-
-                <label>Роли для /ban</label>
-                <div class="custom-select custom-select-multi" id="custom-ban"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <label>Роли для /kick</label>
-                <div class="custom-select custom-select-multi" id="custom-kick"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <label>Роли для /mute</label>
-                <div class="custom-select custom-select-multi" id="custom-mute"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <label>Роли для /warn</label>
-                <div class="custom-select custom-select-multi" id="custom-warn"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <label>Роли для /clear</label>
-                <div class="custom-select custom-select-multi" id="custom-clear"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <label>Роли для /lock</label>
-                <div class="custom-select custom-select-multi" id="custom-lock"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <label>Роли для /unlock</label>
-                <div class="custom-select custom-select-multi" id="custom-unlock"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <label>Роли для /slowmode</label>
-                <div class="custom-select custom-select-multi" id="custom-slowmode"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <label>Роли для /banlist</label>
-                <div class="custom-select custom-select-multi" id="custom-banlist"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
-
-                <button id="saveModerationBtn">СОХРАНИТЬ</button>
-                <div class="save-status" id="status-moderation"></div>
-            </div>
         </div>
     </div>
 
@@ -574,21 +505,6 @@
         const ticketCategorySelect = document.getElementById('ticketCategorySelect');
         const statusTickets = document.getElementById('status-tickets');
 
-        // Модерация
-        const moderationEnabledCheck = document.getElementById('moderationEnabled');
-        const statusModeration = document.getElementById('status-moderation');
-        const customSelectsMulti = {
-            ban: document.getElementById('custom-ban'),
-            kick: document.getElementById('custom-kick'),
-            mute: document.getElementById('custom-mute'),
-            warn: document.getElementById('custom-warn'),
-            clear: document.getElementById('custom-clear'),
-            lock: document.getElementById('custom-lock'),
-            unlock: document.getElementById('custom-unlock'),
-            slowmode: document.getElementById('custom-slowmode'),
-            banlist: document.getElementById('custom-banlist')
-        };
-
         // Все одиночные кастомные списки
         const singleSelects = [
             welcomeChannelSelect,
@@ -599,8 +515,6 @@
             ticketChannelSelect,
             ticketCategorySelect
         ];
-
-        let allRoles = [];
 
         // Инициализация одиночного кастомного списка
         function initSingleSelect(container) {
@@ -653,63 +567,7 @@
             container.getValue = () => selectedValue;
         }
 
-        // Инициализация множественного кастомного списка (модерация)
-        function initMultiSelect(container) {
-            const header = container.querySelector('.select-header');
-            const dropdown = container.querySelector('.dropdown');
-
-            document.addEventListener('click', (e) => {
-                if (!container.contains(e.target)) {
-                    container.classList.remove('open');
-                }
-            });
-
-            header.addEventListener('click', () => {
-                container.classList.toggle('open');
-            });
-
-            // Заполнение ролями (вызовем отдельно)
-            container.populateRoles = (roles) => {
-                dropdown.innerHTML = '';
-                roles.forEach(role => {
-                    const label = document.createElement('label');
-                    const cb = document.createElement('input');
-                    cb.type = 'checkbox';
-                    cb.value = role.id;
-                    cb.addEventListener('change', () => {
-                        updateMultiText(container);
-                    });
-                    label.appendChild(cb);
-                    label.appendChild(document.createTextNode(role.name));
-                    dropdown.appendChild(label);
-                });
-            };
-
-            container.getSelectedIds = () => {
-                return Array.from(dropdown.querySelectorAll('input:checked')).map(cb => cb.value);
-            };
-
-            container.setSelectedIds = (ids) => {
-                dropdown.querySelectorAll('input').forEach(cb => {
-                    cb.checked = ids.includes(cb.value);
-                });
-                updateMultiText(container);
-            };
-
-            function updateMultiText(cont) {
-                const checked = cont.querySelectorAll('input:checked');
-                const names = Array.from(checked).map(cb => cb.parentElement.textContent.trim());
-                cont.querySelector('.select-header span').textContent = names.length > 0 ? names.join(', ') : 'Выберите роли';
-            }
-        }
-
-        // Инициализация одиночных
         singleSelects.forEach(select => initSingleSelect(select));
-
-        // Инициализация множественных
-        for (const container of Object.values(customSelectsMulti)) {
-            initMultiSelect(container);
-        }
 
         // Утилиты загрузки
         async function loadChannels(selectElement) {
@@ -727,9 +585,7 @@
             if (res.status === 403) { showForbidden(); return; }
             if (!res.ok) throw new Error('Ошибка загрузки ролей');
             const roles = await res.json();
-            allRoles = roles;
             selectElement.setItems(roles, defaultText);
-            // Больше не трогаем множественные списки здесь
         }
 
         async function loadCategories(selectElement) {
@@ -779,19 +635,6 @@
             ticketEnabledCheck.checked = cfg.ticketEnabled === true;
             if (cfg.ticketChannelId) ticketChannelSelect.setValue(cfg.ticketChannelId);
             if (cfg.ticketCategoryId) ticketCategorySelect.setValue(cfg.ticketCategoryId);
-        }
-
-        async function loadModerationConfig() {
-            const url = `/api/moderation?key=${encodeURIComponent(key)}`;
-            const res = await fetch(url, { headers });
-            if (res.status === 403) { showForbidden(); return; }
-            const cfg = await res.json();
-            moderationEnabledCheck.checked = cfg.moderationEnabled === true;
-            const rolesMap = cfg.moderationRoles || {};
-            for (const [cmd, container] of Object.entries(customSelectsMulti)) {
-                const allowed = rolesMap[cmd] || [];
-                container.setSelectedIds(allowed);
-            }
         }
 
         // Сохранение
@@ -844,22 +687,6 @@
             if (res.status === 403) { showStatus(statusTickets, 'Неверный ключ', false); return; }
             const data = await res.json();
             showStatus(statusTickets, data.success ? '✅ Настройки сохранены!' : '❌ Ошибка', data.success);
-        }
-
-        async function saveModerationConfig() {
-            const moderationRoles = {};
-            for (const [cmd, container] of Object.entries(customSelectsMulti)) {
-                moderationRoles[cmd] = container.getSelectedIds();
-            }
-            const body = {
-                moderationEnabled: moderationEnabledCheck.checked,
-                moderationRoles
-            };
-            const url = `/api/moderation?key=${encodeURIComponent(key)}`;
-            const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-            if (res.status === 403) { showStatus(statusModeration, 'Неверный ключ', false); return; }
-            const data = await res.json();
-            showStatus(statusModeration, data.success ? '✅ Настройки сохранены!' : '❌ Ошибка', data.success);
         }
 
         function showStatus(element, msg, ok) {
@@ -925,23 +752,15 @@
                 loadCategories(ticketCategorySelect)
             ]);
 
-            // Теперь, когда allRoles заполнен, заполняем множественные списки ролями (без сброса выбора)
-            for (const container of Object.values(customSelectsMulti)) {
-                container.populateRoles(allRoles);
-            }
-
-            // Загружаем остальные конфиги, включая модерацию (установит галочки)
             await loadWelcomeConfig();
             await loadAutoroleConfig();
             await loadVerifyConfig();
             await loadTicketsConfig();
-            await loadModerationConfig();
 
             document.getElementById('saveWelcomeBtn').addEventListener('click', saveWelcomeConfig);
             document.getElementById('saveAutoroleBtn').addEventListener('click', saveAutoroleConfig);
             document.getElementById('saveVerifyBtn').addEventListener('click', saveVerifyConfig);
             document.getElementById('saveTicketsBtn').addEventListener('click', saveTicketsConfig);
-            document.getElementById('saveModerationBtn').addEventListener('click', saveModerationConfig);
         }
         window.addEventListener('load', init);
     </script>
