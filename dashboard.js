@@ -138,33 +138,6 @@ module.exports = function({ client, configPath, warnings, updateTicketPanel, upd
         }
     });
 
-    // ========== МОДЕРАЦИЯ (ключевой маршрут) ==========
-    app.get('/api/moderation', checkAuth, (req, res) => {
-        try {
-            const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-            res.json({
-                moderationEnabled: cfg.moderationEnabled || false,
-                moderationRoles: cfg.moderationRoles || {}
-            });
-        } catch {
-            res.json({ moderationEnabled: false, moderationRoles: {} });
-        }
-    });
-
-    app.post('/api/moderation', checkAuth, (req, res) => {
-        const { moderationEnabled, moderationRoles } = req.body;
-        try {
-            let cfg = {};
-            try { cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8')); } catch {}
-            cfg.moderationEnabled = moderationEnabled === true;
-            cfg.moderationRoles = typeof moderationRoles === 'object' ? moderationRoles : {};
-            fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
-            res.json({ success: true });
-        } catch (e) {
-            res.status(500).json({ error: 'Не удалось сохранить настройки модерации' });
-        }
-    });
-
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => console.log(`Дашборд запущен на http://localhost:${PORT}?key=ВАШ_ADMIN_SECRET`));
 };
