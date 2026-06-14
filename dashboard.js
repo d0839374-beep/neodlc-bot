@@ -138,16 +138,16 @@ module.exports = function({ client, configPath, warnings, updateTicketPanel, upd
         }
     });
 
-    // Модерация
+    // Модерация – теперь объект по командам
     app.get('/api/moderation', checkAuth, (req, res) => {
         try {
             const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
             res.json({
                 moderationEnabled: cfg.moderationEnabled || false,
-                moderationRoles: cfg.moderationRoles || []
+                moderationRoles: cfg.moderationRoles || {}
             });
         } catch {
-            res.json({ moderationEnabled: false, moderationRoles: [] });
+            res.json({ moderationEnabled: false, moderationRoles: {} });
         }
     });
 
@@ -157,7 +157,7 @@ module.exports = function({ client, configPath, warnings, updateTicketPanel, upd
             let cfg = {};
             try { cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8')); } catch {}
             cfg.moderationEnabled = moderationEnabled === true;
-            cfg.moderationRoles = Array.isArray(moderationRoles) ? moderationRoles : [];
+            cfg.moderationRoles = typeof moderationRoles === 'object' ? moderationRoles : {};
             fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
             res.json({ success: true });
         } catch (e) {
