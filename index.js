@@ -43,7 +43,7 @@ try {
     verifiedRoleId: '',
     verifyMessageId: null,
     moderationEnabled: false,
-    moderationRoles: []
+    moderationRoles: {}
   };
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
@@ -250,21 +250,24 @@ client.on('guildMemberAdd', async member => {
   }
 });
 
-// -------- ОБРАБОТЧИК КОМАНД + ПРОВЕРКА РОЛЕЙ МОДЕРАЦИИ --------
+// -------- ОБРАБОТЧИК КОМАНД + ПРОВЕРКА РОЛЕЙ ПО ОТДЕЛЬНОСТИ --------
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
     const { commandName, options, guild, member } = interaction;
     if (!guild) return interaction.reply({ content: 'Команды только на сервере.', flags: MessageFlags.Ephemeral });
 
-    // === ПРОВЕРКА РОЛЕЙ МОДЕРАЦИИ ===
+    // === ПРОВЕРКА РОЛЕЙ МОДЕРАЦИИ ДЛЯ КОНКРЕТНОЙ КОМАНДЫ ===
     const moderationCommands = ['ban', 'unban', 'kick', 'warn', 'warnings', 'clear', 'mute', 'unmute', 'slowmode', 'lock', 'unlock', 'banlist'];
     if (moderationCommands.includes(commandName)) {
       try {
         const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-        if (cfg.moderationEnabled && cfg.moderationRoles && cfg.moderationRoles.length > 0) {
-          const hasRole = member.roles.cache.some(role => cfg.moderationRoles.includes(role.id));
-          if (!hasRole) {
-            return interaction.reply({ content: '❌ У вас нет разрешённой роли для выполнения этой команды.', flags: MessageFlags.Ephemeral });
+        if (cfg.moderationEnabled) {
+          const allowedRoles = cfg.moderationRoles?.[commandName];
+          if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
+            const hasRole = member.roles.cache.some(role => allowedRoles.includes(role.id));
+            if (!hasRole) {
+              return interaction.reply({ content: '❌ У вас нет разрешённой роли для выполнения этой команды.', flags: MessageFlags.Ephemeral });
+            }
           }
         }
       } catch (e) {}
@@ -387,7 +390,7 @@ client.on('interactionCreate', async interaction => {
             { name: '⏱ Мут', value: '`/mute @user minutes:10` — замутить на указанное время.' },
             { name: '🎫 Тикеты', value: 'Включите в дашборде, выберите канал и категорию.' },
             { name: '🛡️ Verify', value: 'При входе выдаётся роль без доступа, после реакции ✅ на сообщении верификации доступ открывается.' },
-            { name: '👑 Дашборд', value: '`http://localhost:3000?key=ВАШ_КЛЮЧ` — вкладки Приветствие, Автороль, Verify, Тикеты.' }
+            { name: '👑 Дашборд', value: '`http://localhost:3000?key=ВАШ_КЛЮЧ` — вкладки Приветствие, Автороль, Verify, Тикеты, Модерация.' }
           )
           .setFooter({ text: 'Все команды требуют соответствующих прав модератора.' });
         await interaction.reply({ embeds: [tutorialEmbed] });
