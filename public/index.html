@@ -327,15 +327,13 @@
         .custom-select.open .dropdown {
             display: block;
         }
+        /* Одиночный выбор */
         .custom-select .dropdown .option {
             padding: 0.6rem 1rem;
             cursor: pointer;
             font-size: 0.9rem;
             color: #ccc;
             transition: background 0.2s;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
         .custom-select .dropdown .option:hover {
             background: rgba(255,255,255,0.05);
@@ -346,7 +344,7 @@
             color: #fff;
             font-weight: 500;
         }
-        /* Множественный выбор (модерация) */
+        /* Множественный выбор */
         .custom-select-multi .dropdown label {
             display: flex;
             align-items: center;
@@ -636,13 +634,11 @@
                         selectedValue = item.id;
                         header.querySelector('span').textContent = item.name;
                         container.classList.remove('open');
-                        // обновить стиль выбранного
                         dropdown.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
                         div.classList.add('selected');
                     });
                     dropdown.appendChild(div);
                 });
-                // сбросить выбор
                 selectedValue = '';
                 header.querySelector('span').textContent = defaultText;
             };
@@ -653,7 +649,6 @@
                     targetOption.click();
                 } else {
                     selectedValue = valueId;
-                    // если значение есть, но не найдено в списке, просто покажем ID
                     header.querySelector('span').textContent = valueId || 'Не выбрано';
                 }
             };
@@ -684,6 +679,9 @@
                     cb.type = 'checkbox';
                     cb.value = item.id;
                     cb.checked = selectedIds.includes(item.id);
+                    cb.addEventListener('change', () => {
+                        updateMultiText(container);
+                    });
                     label.appendChild(cb);
                     label.appendChild(document.createTextNode(item.name));
                     dropdown.appendChild(label);
@@ -709,10 +707,10 @@
             }
         }
 
-        // Инициализация всех одиночных
+        // Инициализация одиночных
         singleSelects.forEach(select => initSingleSelect(select));
 
-        // Инициализация всех множественных
+        // Инициализация множественных
         for (const container of Object.values(customSelectsMulti)) {
             initMultiSelect(container);
         }
@@ -736,9 +734,9 @@
             const roles = await res.json();
             allRoles = roles;
             selectElement.setItems(roles, defaultText);
-            // также обновим все множественные списки модерации
+            // обновим множественные списки
             for (const container of Object.values(customSelectsMulti)) {
-                container.setItems(roles, []); // сброс выбранных при загрузке ролей
+                container.setItems(roles, []); // при загрузке ролей сбрасываем выбор
             }
         }
 
@@ -926,7 +924,6 @@
             const testRes = await fetch(testUrl, { headers });
             if (testRes.status === 403) { showForbidden(); return; }
 
-            // Загружаем данные в одиночные списки
             await Promise.all([
                 loadChannels(welcomeChannelSelect),
                 loadChannels(verifyChannelSelect),
@@ -937,9 +934,8 @@
                 loadCategories(ticketCategorySelect)
             ]);
 
-            // Загружаем роли для модерации (уже загружены через loadRoles, но нужно обновить множественные)
-            // Они были обновлены внутри loadRoles
-
+            // Обновляем роли в множественных списках ещё раз после полной загрузки
+            // (они уже были сброшены внутри loadRoles, теперь загрузим сохранённые значения)
             await loadWelcomeConfig();
             await loadAutoroleConfig();
             await loadVerifyConfig();
