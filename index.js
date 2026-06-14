@@ -13,8 +13,7 @@ const {
   ButtonBuilder,
   ButtonStyle
 } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { Pool } = require('pg');
 const dashboard = require('./dashboard');
 
 if (!process.env.DISCORD_TOKEN) {
@@ -23,30 +22,59 @@ if (!process.env.DISCORD_TOKEN) {
 }
 console.log('✅ Токен загружен');
 
-const configPath = path.join(__dirname, 'config.json');
-let config = {};
-try {
-  config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-} catch {
-  config = {
-    welcomeChannelId: '',
-    memberRoleId: '',
-    unverifiedRoleId: '',
-    welcomeEnabled: true,
-    welcomeMessage: 'Добро пожаловать, {user}, на сервер!',
-    ticketEnabled: false,
-    ticketChannelId: '',
-    ticketCategoryId: '',
-    ticketMessageId: null,
-    verifyEnabled: false,
-    verifyChannelId: '',
-    verifiedRoleId: '',
-    verifyMessageId: null
-  };
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+// Подключение к PostgreSQL
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: { rejectUnauthorized: false }
+});
+
+// Инициализация таблицы
+async function initDB() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS config (
+        key TEXT PRIMARY KEY,
+        value JSONB NOT NULL
+      )
+    `);
+    console.log('✅ Таблица config готова');
+  } catch (err) {
+    console.error('❌ Ошибка инициализации БД:', err);
+  }
 }
 
-const warnings = new Map();
+// Загрузка конфига из БД
+async function loadConfig() {
+  try {
+    const res = await pool.query('SELECT value FROM config WHERE key = $1', ['main']);
+    if (res.rows.length > 0) {
+      console.log('✅ Конфиг загружен из БД');
+      return res.rows[0].value;
+    }
+  } catch (err) {
+    console.error('❌ Ошибка загрузки конфига:', err);
+  }
+  return null;
+}
+
+// Сохранение конфига в БД
+async function saveConfig(cfg) {
+  try {
+    await pool.query(
+      'INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+      ['main', JSON.stringify(cfg)]
+    );
+    console.log('✅ Конфиг сохранён в БД');
+    return true;
+  } catch (err) {
+    console.error('❌ Ошибка сохранения конфига:', err);
+    return false;
+  }
+}
 
 const client = new Client({
   intents: [
@@ -58,13 +86,14 @@ const client = new Client({
   ]
 });
 
+// Глобальный конфиг (загружается при старте)
+let config = {};
+
 // -------- Обновление панели верификации --------
 async function updateVerifyPanel() {
   try {
-    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    if (!cfg.verifyEnabled || !cfg.verifyChannelId) return;
-
-    const channel = client.channels.cache.get(cfg.verifyChannelId);
+    if (!config.verifyEnabled || !config.verifyChannelId) return;
+    const channel = client.channels.cache.get(config.verifyChannelId);
     if (!channel || channel.type !== ChannelType.GuildText) return;
 
     const embed = new EmbedBuilder()
@@ -73,24 +102,22 @@ async function updateVerifyPanel() {
       .setDescription('Нажмите на реакцию ✅ под этим сообщением, чтобы получить доступ к серверу.')
       .setFooter({ text: 'Вы получите роль Verified, а ограничения будут сняты.' });
 
-    if (cfg.verifyMessageId) {
+    if (config.verifyMessageId) {
       try {
-        const msg = await channel.messages.fetch(cfg.verifyMessageId);
+        const msg = await channel.messages.fetch(config.verifyMessageId);
         await msg.edit({ embeds: [embed] });
-        if (!msg.reactions.cache.has('✅')) {
-          await msg.react('✅');
-        }
+        if (!msg.reactions.cache.has('✅')) await msg.react('✅');
         return;
       } catch {
-        cfg.verifyMessageId = null;
-        fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
+        config.verifyMessageId = null;
+        await saveConfig(config);
       }
     }
 
     const msg = await channel.send({ embeds: [embed] });
     await msg.react('✅');
-    cfg.verifyMessageId = msg.id;
-    fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
+    config.verifyMessageId = msg.id;
+    await saveConfig(config);
   } catch (err) {
     console.error('Ошибка обновления панели верификации:', err);
   }
@@ -99,10 +126,8 @@ async function updateVerifyPanel() {
 // -------- Обновление тикет-панели --------
 async function updateTicketPanel() {
   try {
-    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    if (!cfg.ticketEnabled || !cfg.ticketChannelId) return;
-
-    const channel = client.channels.cache.get(cfg.ticketChannelId);
+    if (!config.ticketEnabled || !config.ticketChannelId) return;
+    const channel = client.channels.cache.get(config.ticketChannelId);
     if (!channel || channel.type !== ChannelType.GuildText) return;
 
     const embed = new EmbedBuilder()
@@ -119,20 +144,20 @@ async function updateTicketPanel() {
         .setEmoji('📩')
     );
 
-    if (cfg.ticketMessageId) {
+    if (config.ticketMessageId) {
       try {
-        const msg = await channel.messages.fetch(cfg.ticketMessageId);
+        const msg = await channel.messages.fetch(config.ticketMessageId);
         await msg.edit({ embeds: [embed], components: [row] });
         return;
       } catch {
-        cfg.ticketMessageId = null;
-        fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
+        config.ticketMessageId = null;
+        await saveConfig(config);
       }
     }
 
     const msg = await channel.send({ embeds: [embed], components: [row] });
-    cfg.ticketMessageId = msg.id;
-    fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
+    config.ticketMessageId = msg.id;
+    await saveConfig(config);
   } catch (err) {
     console.error('Ошибка обновления тикет-панели:', err);
   }
@@ -181,6 +206,8 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
 ];
 
+const warnings = new Map();
+
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 (async () => {
   try {
@@ -195,21 +222,35 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   }
 })();
 
-client.on('ready', () => {
+client.once('ready', async () => {
   console.log(`Бот ${client.user.tag} запущен!`);
-  dashboard({ client, configPath, warnings, updateTicketPanel, updateVerifyPanel });
+  await initDB();
+  const saved = await loadConfig();
+  config = saved || {
+    welcomeChannelId: '',
+    memberRoleId: '',
+    unverifiedRoleId: '',
+    welcomeEnabled: true,
+    welcomeMessage: 'Добро пожаловать, {user}, на сервер!',
+    ticketEnabled: false,
+    ticketChannelId: '',
+    ticketCategoryId: '',
+    ticketMessageId: null,
+    verifyEnabled: false,
+    verifyChannelId: '',
+    verifiedRoleId: '',
+    verifyMessageId: null
+  };
+  dashboard({ client, pool, updateTicketPanel, updateVerifyPanel });
   updateTicketPanel();
   updateVerifyPanel();
 });
 
 // -------- АВТО‑РОЛЬ + ВЕРИФИКАЦИЯ ПРИ ВХОДЕ --------
 client.on('guildMemberAdd', async member => {
-  let cfg;
-  try { cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8')); } catch { cfg = config; }
-
   // Member всегда, если задан
-  if (cfg.memberRoleId) {
-    const memberRole = member.guild.roles.cache.get(cfg.memberRoleId);
+  if (config.memberRoleId) {
+    const memberRole = member.guild.roles.cache.get(config.memberRoleId);
     if (memberRole && !memberRole.managed && memberRole.editable) {
       try {
         await member.roles.add(memberRole);
@@ -218,13 +259,13 @@ client.on('guildMemberAdd', async member => {
         console.error(`❌ Ошибка выдачи роли Member: ${e.message}`);
       }
     } else {
-      console.warn(`⚠️ Роль Member ${cfg.memberRoleId} недоступна.`);
+      console.warn(`⚠️ Роль Member ${config.memberRoleId} недоступна.`);
     }
   }
 
   // Unverified только если верификация включена
-  if (cfg.verifyEnabled && cfg.unverifiedRoleId) {
-    const unverifiedRole = member.guild.roles.cache.get(cfg.unverifiedRoleId);
+  if (config.verifyEnabled && config.unverifiedRoleId) {
+    const unverifiedRole = member.guild.roles.cache.get(config.unverifiedRoleId);
     if (unverifiedRole && !unverifiedRole.managed && unverifiedRole.editable) {
       try {
         await member.roles.add(unverifiedRole);
@@ -233,15 +274,15 @@ client.on('guildMemberAdd', async member => {
         console.error(`❌ Ошибка выдачи Unverified: ${e.message}`);
       }
     } else {
-      console.warn(`⚠️ Роль Unverified ${cfg.unverifiedRoleId} недоступна.`);
+      console.warn(`⚠️ Роль Unverified ${config.unverifiedRoleId} недоступна.`);
     }
   }
 
   // Приветствие
-  if (cfg.welcomeEnabled && cfg.welcomeChannelId) {
-    const channel = member.guild.channels.cache.get(cfg.welcomeChannelId);
+  if (config.welcomeEnabled && config.welcomeChannelId) {
+    const channel = member.guild.channels.cache.get(config.welcomeChannelId);
     if (channel?.isTextBased()) {
-      const msg = cfg.welcomeMessage.replace('{user}', `<@${member.user.id}>`);
+      const msg = config.welcomeMessage.replace('{user}', `<@${member.user.id}>`);
       channel.send(msg).catch(console.error);
     }
   }
@@ -249,7 +290,6 @@ client.on('guildMemberAdd', async member => {
 
 // -------- СПИСОК РОЛЕЙ МОДЕРАЦИИ (жёстко задан) --------
 const MODERATION_ROLES = ['owner', 'gl.owner', 'tester', 'bot', 'manager', 'moderator'];
-
 function hasModerationRole(member) {
   return member.roles.cache.some(role => MODERATION_ROLES.includes(role.name.toLowerCase()));
 }
@@ -260,7 +300,6 @@ client.on('interactionCreate', async interaction => {
     const { commandName, options, guild, member } = interaction;
     if (!guild) return interaction.reply({ content: 'Команды только на сервере.', flags: MessageFlags.Ephemeral });
 
-    // Проверка для модерационных команд
     const moderationCommands = ['ban', 'unban', 'kick', 'warn', 'warnings', 'clear', 'mute', 'unmute', 'slowmode', 'lock', 'unlock', 'banlist'];
     if (moderationCommands.includes(commandName) && !hasModerationRole(member)) {
       return interaction.reply({ content: '❌ У вас нет разрешённой роли для выполнения этой команды.', flags: MessageFlags.Ephemeral });
@@ -276,7 +315,6 @@ client.on('interactionCreate', async interaction => {
         await target.ban({ reason });
         await interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setDescription(`🔨 ${user.tag} забанен. Причина: ${reason}`)] });
       }
-
       else if (commandName === 'unban') {
         const userId = options.getString('userid');
         const reason = options.getString('reason') || 'Не указана';
@@ -288,7 +326,6 @@ client.on('interactionCreate', async interaction => {
           await interaction.reply({ content: `❌ Не удалось разбанить. Проверьте ID и наличие бана.`, flags: MessageFlags.Ephemeral });
         }
       }
-
       else if (commandName === 'kick') {
         const user = options.getUser('user');
         const reason = options.getString('reason') || 'Не указана';
@@ -298,7 +335,6 @@ client.on('interactionCreate', async interaction => {
         await target.kick(reason);
         await interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFFA500).setDescription(`👢 ${user.tag} кикнут. Причина: ${reason}`)] });
       }
-
       else if (commandName === 'warn') {
         const user = options.getUser('user');
         const reason = options.getString('reason') || 'Не указана';
@@ -308,20 +344,17 @@ client.on('interactionCreate', async interaction => {
         const count = guildWarns.get(user.id);
         await interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFFFF00).setDescription(`⚠️ ${user.tag} получил предупреждение #${count}. Причина: ${reason}`)] });
       }
-
       else if (commandName === 'warnings') {
         const user = options.getUser('user');
         const guildWarns = warnings.get(guild.id);
         const count = guildWarns ? guildWarns.get(user.id) || 0 : 0;
         await interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFFFF00).setDescription(`📋 ${user.tag} имеет ${count} предупреждений.`)] });
       }
-
       else if (commandName === 'clear') {
         const amount = options.getInteger('amount');
         await interaction.channel.bulkDelete(amount, true);
         await interaction.reply({ content: `🧹 Удалено ${amount} сообщений.`, flags: MessageFlags.Ephemeral });
       }
-
       else if (commandName === 'mute') {
         const user = options.getUser('user');
         const minutes = options.getInteger('minutes');
@@ -334,7 +367,6 @@ client.on('interactionCreate', async interaction => {
         const until = Math.floor((Date.now() + ms) / 1000);
         await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x808080).setDescription(`🔇 ${user.tag} замучен на ${minutes} мин. до <t:${until}:f>. Причина: ${reason}`)] });
       }
-
       else if (commandName === 'unmute') {
         const user = options.getUser('user');
         const target = await guild.members.fetch(user.id).catch(() => null);
@@ -343,27 +375,23 @@ client.on('interactionCreate', async interaction => {
         await target.timeout(null);
         await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x00FF00).setDescription(`🔊 ${user.tag} размучен.`)] });
       }
-
       else if (commandName === 'slowmode') {
         const seconds = options.getInteger('seconds');
         await interaction.channel.setRateLimitPerUser(seconds);
         await interaction.reply({ content: seconds === 0 ? '⏩ Медленный режим отключён.' : `🐢 Медленный режим установлен на ${seconds} сек.`, flags: MessageFlags.Ephemeral });
       }
-
       else if (commandName === 'lock') {
         const channel = interaction.channel;
         if (channel.type !== ChannelType.GuildText) return interaction.reply({ content: 'Эта команда только для текстовых каналов.', flags: MessageFlags.Ephemeral });
         await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false });
         await interaction.reply({ content: '🔒 Канал закрыт для @everyone.' });
       }
-
       else if (commandName === 'unlock') {
         const channel = interaction.channel;
         if (channel.type !== ChannelType.GuildText) return interaction.reply({ content: 'Эта команда только для текстовых каналов.', flags: MessageFlags.Ephemeral });
         await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: null });
         await interaction.reply({ content: '🔓 Канал открыт для @everyone.' });
       }
-
       else if (commandName === 'banlist') {
         const bans = await guild.bans.fetch();
         if (bans.size === 0) return interaction.reply({ content: 'Нет забаненных пользователей.', flags: MessageFlags.Ephemeral });
@@ -380,11 +408,10 @@ client.on('interactionCreate', async interaction => {
   // Кнопки тикетов
   if (interaction.isButton()) {
     if (interaction.customId === 'create_ticket') {
-      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      if (!cfg.ticketEnabled || !cfg.ticketCategoryId) {
+      if (!config.ticketEnabled || !config.ticketCategoryId) {
         return interaction.reply({ content: 'Система тикетов не настроена.', flags: MessageFlags.Ephemeral });
       }
-      const category = interaction.guild.channels.cache.get(cfg.ticketCategoryId);
+      const category = interaction.guild.channels.cache.get(config.ticketCategoryId);
       if (!category || category.type !== 4) {
         return interaction.reply({ content: 'Категория не найдена.', flags: MessageFlags.Ephemeral });
       }
@@ -447,17 +474,16 @@ client.on('messageReactionAdd', async (reaction, user) => {
     try { await reaction.fetch(); } catch (error) { return; }
   }
 
-  const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-  if (!cfg.verifyEnabled || !cfg.verifyChannelId || !cfg.verifyMessageId) return;
-  if (reaction.message.id !== cfg.verifyMessageId) return;
+  if (!config.verifyEnabled || !config.verifyChannelId || !config.verifyMessageId) return;
+  if (reaction.message.id !== config.verifyMessageId) return;
   if (reaction.emoji.name !== '✅') return;
 
   const guild = reaction.message.guild;
   const member = await guild.members.fetch(user.id).catch(() => null);
   if (!member) return;
 
-  const unverifiedRole = cfg.unverifiedRoleId ? guild.roles.cache.get(cfg.unverifiedRoleId) : null;
-  const verifiedRole = cfg.verifiedRoleId ? guild.roles.cache.get(cfg.verifiedRoleId) : null;
+  const unverifiedRole = config.unverifiedRoleId ? guild.roles.cache.get(config.unverifiedRoleId) : null;
+  const verifiedRole = config.verifiedRoleId ? guild.roles.cache.get(config.verifiedRoleId) : null;
   if (!unverifiedRole || !verifiedRole) return;
 
   if (!member.roles.cache.has(unverifiedRole.id)) return;
