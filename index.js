@@ -140,7 +140,7 @@ async function updateTicketPanel() {
   }
 }
 
-// -------- КОМАНДЫ --------
+// -------- КОМАНДЫ (без /tutorial) --------
 const commands = [
   new SlashCommandBuilder().setName('ban').setDescription('Забанить участника')
     .addUserOption(o => o.setName('user').setDescription('Участник').setRequired(true))
@@ -180,8 +180,7 @@ const commands = [
   new SlashCommandBuilder().setName('unlock').setDescription('Открыть канал для @everyone')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
   new SlashCommandBuilder().setName('banlist').setDescription('Список забаненных')
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
-  new SlashCommandBuilder().setName('tutorial').setDescription('Руководство по боту')
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -377,23 +376,6 @@ client.on('interactionCreate', async interaction => {
         const list = bans.map(ban => `\`${ban.user.id}\` – ${ban.user.tag} (причина: ${ban.reason || 'нет'})`).join('\n');
         const embed = new EmbedBuilder().setColor(0xFFFFFF).setTitle('📜 Список банов').setDescription(list.slice(0, 4000));
         await interaction.reply({ embeds: [embed] });
-      }
-
-      else if (commandName === 'tutorial') {
-        const tutorialEmbed = new EmbedBuilder()
-          .setColor(0xFFFFFF)
-          .setTitle('📘 Руководство по боту')
-          .setDescription('Возможности бота:')
-          .addFields(
-            { name: '👋 Приветствие и авто‑роль', value: 'Настройте в дашборде.' },
-            { name: '🛡 Модерация', value: '`/ban`, `/unban`, `/kick`, `/warn`, `/warnings`, `/clear`, `/mute`, `/unmute`, `/slowmode`, `/lock`, `/unlock`, `/banlist`' },
-            { name: '⏱ Мут', value: '`/mute @user minutes:10` — замутить на указанное время.' },
-            { name: '🎫 Тикеты', value: 'Включите в дашборде, выберите канал и категорию.' },
-            { name: '🛡️ Verify', value: 'При входе выдаётся роль без доступа, после реакции ✅ на сообщении верификации доступ открывается.' },
-            { name: '👑 Дашборд', value: '`http://localhost:3000?key=ВАШ_КЛЮЧ` — вкладки Приветствие, Автороль, Verify, Тикеты, Модерация.' }
-          )
-          .setFooter({ text: 'Все команды требуют соответствующих прав модератора.' });
-        await interaction.reply({ embeds: [tutorialEmbed] });
       }
     } catch (err) {
       console.error('Ошибка выполнения команды:', err);
