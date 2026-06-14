@@ -138,7 +138,7 @@ module.exports = function({ client, configPath, warnings, updateTicketPanel, upd
         }
     });
 
-    // Модерация – теперь объект по командам
+    // ========== МОДЕРАЦИЯ (ключевой маршрут) ==========
     app.get('/api/moderation', checkAuth, (req, res) => {
         try {
             const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
