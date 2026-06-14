@@ -41,9 +41,7 @@ try {
     verifyEnabled: false,
     verifyChannelId: '',
     verifiedRoleId: '',
-    verifyMessageId: null,
-    moderationEnabled: false,
-    moderationRoles: {}
+    verifyMessageId: null
   };
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
@@ -249,27 +247,23 @@ client.on('guildMemberAdd', async member => {
   }
 });
 
-// -------- ОБРАБОТЧИК КОМАНД + ПРОВЕРКА РОЛЕЙ ПО ОТДЕЛЬНОСТИ --------
+// -------- СПИСОК РОЛЕЙ МОДЕРАЦИИ (жёстко задан) --------
+const MODERATION_ROLES = ['owner', 'gl.owner', 'tester', 'bot', 'manager', 'moderator'];
+
+function hasModerationRole(member) {
+  return member.roles.cache.some(role => MODERATION_ROLES.includes(role.name.toLowerCase()));
+}
+
+// -------- ОБРАБОТЧИК КОМАНД --------
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
     const { commandName, options, guild, member } = interaction;
     if (!guild) return interaction.reply({ content: 'Команды только на сервере.', flags: MessageFlags.Ephemeral });
 
-    // === ПРОВЕРКА РОЛЕЙ МОДЕРАЦИИ ДЛЯ КОНКРЕТНОЙ КОМАНДЫ ===
+    // Проверка для модерационных команд
     const moderationCommands = ['ban', 'unban', 'kick', 'warn', 'warnings', 'clear', 'mute', 'unmute', 'slowmode', 'lock', 'unlock', 'banlist'];
-    if (moderationCommands.includes(commandName)) {
-      try {
-        const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-        if (cfg.moderationEnabled) {
-          const allowedRoles = cfg.moderationRoles?.[commandName];
-          if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
-            const hasRole = member.roles.cache.some(role => allowedRoles.includes(role.id));
-            if (!hasRole) {
-              return interaction.reply({ content: '❌ У вас нет разрешённой роли для выполнения этой команды.', flags: MessageFlags.Ephemeral });
-            }
-          }
-        }
-      } catch (e) {}
+    if (moderationCommands.includes(commandName) && !hasModerationRole(member)) {
+      return interaction.reply({ content: '❌ У вас нет разрешённой роли для выполнения этой команды.', flags: MessageFlags.Ephemeral });
     }
 
     try {
