@@ -189,6 +189,7 @@
             letter-spacing: 1.5px;
             font-weight: 400;
         }
+
         textarea, input[type="text"] {
             width: 100%;
             padding: 0.75rem 1rem;
@@ -281,7 +282,7 @@
         }
         .save-status.show { opacity: 1; }
 
-        /* Кастомный выпадающий список с чекбоксами */
+        /* Кастомные списки */
         .custom-select {
             position: relative;
             margin-top: 0.5rem;
@@ -326,7 +327,27 @@
         .custom-select.open .dropdown {
             display: block;
         }
-        .custom-select .dropdown label {
+        .custom-select .dropdown .option {
+            padding: 0.6rem 1rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #ccc;
+            transition: background 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .custom-select .dropdown .option:hover {
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+        .custom-select .dropdown .option.selected {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-weight: 500;
+        }
+        /* Множественный выбор (модерация) */
+        .custom-select-multi .dropdown label {
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -339,11 +360,11 @@
             letter-spacing: normal;
             transition: background 0.2s;
         }
-        .custom-select .dropdown label:hover {
+        .custom-select-multi .dropdown label:hover {
             background: rgba(255,255,255,0.05);
             color: #fff;
         }
-        .custom-select .dropdown input[type="checkbox"] {
+        .custom-select-multi .dropdown input[type="checkbox"] {
             accent-color: #fff;
             width: 16px;
             height: 16px;
@@ -401,7 +422,7 @@
                     <label class="switch"><input type="checkbox" id="welcomeEnabled" checked><span class="slider"></span></label>
                 </div>
                 <label>Канал для приветствия</label>
-                <select id="welcomeChannelId" class="normal-select"><option value="">-- выберите канал --</option></select>
+                <div class="custom-select" id="welcomeChannelSelect"></div>
                 <label>Текст приветствия</label>
                 <textarea id="welcomeMessage" placeholder="Используйте {user} для упоминания"></textarea>
                 <button id="saveWelcomeBtn">СОХРАНИТЬ</button>
@@ -415,9 +436,9 @@
                     Автороль
                 </h1>
                 <label>Роль Member (выдаётся всем новым)</label>
-                <select id="memberRoleId" class="normal-select"><option value="">-- не выбрана --</option></select>
+                <div class="custom-select" id="memberRoleSelect"></div>
                 <label>Роль Unverified (выдаётся при включённой верификации)</label>
-                <select id="unverifiedRoleId" class="normal-select"><option value="">-- не выбрана --</option></select>
+                <div class="custom-select" id="unverifiedRoleSelect"></div>
                 <button id="saveAutoroleBtn">СОХРАНИТЬ</button>
                 <div class="save-status" id="status-autorole"></div>
             </div>
@@ -433,9 +454,9 @@
                     <label class="switch"><input type="checkbox" id="verifyEnabled"><span class="slider"></span></label>
                 </div>
                 <label>Канал для верификации</label>
-                <select id="verifyChannelId" class="normal-select"><option value="">-- выберите канал --</option></select>
+                <div class="custom-select" id="verifyChannelSelect"></div>
                 <label>Роль "Verified"</label>
-                <select id="verifiedRoleId" class="normal-select"><option value="">-- выберите роль --</option></select>
+                <div class="custom-select" id="verifiedRoleSelect"></div>
                 <button id="saveVerifyBtn">СОХРАНИТЬ</button>
                 <div class="save-status" id="status-verify"></div>
             </div>
@@ -451,9 +472,9 @@
                     <label class="switch"><input type="checkbox" id="ticketEnabled"><span class="slider"></span></label>
                 </div>
                 <label>Канал для панели тикетов</label>
-                <select id="ticketChannelId" class="normal-select"><option value="">-- выберите канал --</option></select>
+                <div class="custom-select" id="ticketChannelSelect"></div>
                 <label>Категория для тикетов</label>
-                <select id="ticketCategoryId" class="normal-select"><option value="">-- выберите категорию --</option></select>
+                <div class="custom-select" id="ticketCategorySelect"></div>
                 <button id="saveTicketsBtn">СОХРАНИТЬ</button>
                 <div class="save-status" id="status-tickets"></div>
             </div>
@@ -470,31 +491,31 @@
                 </div>
 
                 <label>Роли для /ban</label>
-                <div class="custom-select" id="custom-ban"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-ban"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <label>Роли для /kick</label>
-                <div class="custom-select" id="custom-kick"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-kick"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <label>Роли для /mute</label>
-                <div class="custom-select" id="custom-mute"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-mute"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <label>Роли для /warn</label>
-                <div class="custom-select" id="custom-warn"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-warn"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <label>Роли для /clear</label>
-                <div class="custom-select" id="custom-clear"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-clear"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <label>Роли для /lock</label>
-                <div class="custom-select" id="custom-lock"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-lock"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <label>Роли для /unlock</label>
-                <div class="custom-select" id="custom-unlock"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-unlock"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <label>Роли для /slowmode</label>
-                <div class="custom-select" id="custom-slowmode"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-slowmode"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <label>Роли для /banlist</label>
-                <div class="custom-select" id="custom-banlist"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
+                <div class="custom-select custom-select-multi" id="custom-banlist"><div class="select-header"><span>Выберите роли</span><span class="arrow">▼</span></div><div class="dropdown"></div></div>
 
                 <button id="saveModerationBtn">СОХРАНИТЬ</button>
                 <div class="save-status" id="status-moderation"></div>
@@ -535,31 +556,31 @@
 
         // Приветствие
         const welcomeEnabledCheck = document.getElementById('welcomeEnabled');
-        const welcomeChannelSelect = document.getElementById('welcomeChannelId');
+        const welcomeChannelSelect = document.getElementById('welcomeChannelSelect');
         const welcomeMessageText = document.getElementById('welcomeMessage');
         const statusWelcome = document.getElementById('status-welcome');
 
         // Автороль
-        const memberRoleSelect = document.getElementById('memberRoleId');
-        const unverifiedRoleSelect = document.getElementById('unverifiedRoleId');
+        const memberRoleSelect = document.getElementById('memberRoleSelect');
+        const unverifiedRoleSelect = document.getElementById('unverifiedRoleSelect');
         const statusAutorole = document.getElementById('status-autorole');
 
         // Verify
         const verifyEnabledCheck = document.getElementById('verifyEnabled');
-        const verifyChannelSelect = document.getElementById('verifyChannelId');
-        const verifiedRoleSelect = document.getElementById('verifiedRoleId');
+        const verifyChannelSelect = document.getElementById('verifyChannelSelect');
+        const verifiedRoleSelect = document.getElementById('verifiedRoleSelect');
         const statusVerify = document.getElementById('status-verify');
 
         // Тикеты
         const ticketEnabledCheck = document.getElementById('ticketEnabled');
-        const ticketChannelSelect = document.getElementById('ticketChannelId');
-        const ticketCategorySelect = document.getElementById('ticketCategoryId');
+        const ticketChannelSelect = document.getElementById('ticketChannelSelect');
+        const ticketCategorySelect = document.getElementById('ticketCategorySelect');
         const statusTickets = document.getElementById('status-tickets');
 
         // Модерация
         const moderationEnabledCheck = document.getElementById('moderationEnabled');
         const statusModeration = document.getElementById('status-moderation');
-        const customSelects = {
+        const customSelectsMulti = {
             ban: document.getElementById('custom-ban'),
             kick: document.getElementById('custom-kick'),
             mute: document.getElementById('custom-mute'),
@@ -571,15 +592,29 @@
             banlist: document.getElementById('custom-banlist')
         };
 
-        // Массив всех ролей (заполним позже)
-        let allRoles = [];
+        // Все одиночные кастомные списки
+        const singleSelects = [
+            welcomeChannelSelect,
+            memberRoleSelect,
+            unverifiedRoleSelect,
+            verifyChannelSelect,
+            verifiedRoleSelect,
+            ticketChannelSelect,
+            ticketCategorySelect
+        ];
 
-        // Инициализация кастомного списка
-        function initCustomSelect(container, command) {
+        let allRoles = [];
+        let allChannels = [];
+        let allCategories = [];
+
+        // Инициализация одиночного кастомного списка
+        function initSingleSelect(container) {
+            container.classList.add('custom-select');
+            container.innerHTML = `<div class="select-header"><span>Не выбрано</span><span class="arrow">▼</span></div><div class="dropdown"></div>`;
             const header = container.querySelector('.select-header');
             const dropdown = container.querySelector('.dropdown');
+            let selectedValue = '';
 
-            // Закрывать при клике вне
             document.addEventListener('click', (e) => {
                 if (!container.contains(e.target)) {
                     container.classList.remove('open');
@@ -590,46 +625,96 @@
                 container.classList.toggle('open');
             });
 
-            // Обновить текст выбранных
-            function updateText() {
-                const checked = dropdown.querySelectorAll('input:checked');
-                const names = Array.from(checked).map(cb => cb.dataset.name);
-                header.querySelector('span').textContent = names.length > 0 ? names.join(', ') : 'Выберите роли';
-            }
-
-            // Заполнение dropdown
-            function populate(selectedIds = []) {
+            container.setItems = (items, defaultText = 'Не выбрано') => {
                 dropdown.innerHTML = '';
-                allRoles.forEach(role => {
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'option';
+                    div.textContent = item.name;
+                    div.dataset.value = item.id;
+                    div.addEventListener('click', () => {
+                        selectedValue = item.id;
+                        header.querySelector('span').textContent = item.name;
+                        container.classList.remove('open');
+                        // обновить стиль выбранного
+                        dropdown.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+                        div.classList.add('selected');
+                    });
+                    dropdown.appendChild(div);
+                });
+                // сбросить выбор
+                selectedValue = '';
+                header.querySelector('span').textContent = defaultText;
+            };
+
+            container.setValue = (valueId) => {
+                const targetOption = dropdown.querySelector(`.option[data-value="${valueId}"]`);
+                if (targetOption) {
+                    targetOption.click();
+                } else {
+                    selectedValue = valueId;
+                    // если значение есть, но не найдено в списке, просто покажем ID
+                    header.querySelector('span').textContent = valueId || 'Не выбрано';
+                }
+            };
+
+            container.getValue = () => selectedValue;
+        }
+
+        // Инициализация множественного кастомного списка (модерация)
+        function initMultiSelect(container) {
+            const header = container.querySelector('.select-header');
+            const dropdown = container.querySelector('.dropdown');
+
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    container.classList.remove('open');
+                }
+            });
+
+            header.addEventListener('click', () => {
+                container.classList.toggle('open');
+            });
+
+            container.setItems = (items, selectedIds = []) => {
+                dropdown.innerHTML = '';
+                items.forEach(item => {
                     const label = document.createElement('label');
                     const cb = document.createElement('input');
                     cb.type = 'checkbox';
-                    cb.value = role.id;
-                    cb.dataset.name = role.name;
-                    cb.checked = selectedIds.includes(role.id);
-                    cb.addEventListener('change', updateText);
+                    cb.value = item.id;
+                    cb.checked = selectedIds.includes(item.id);
                     label.appendChild(cb);
-                    label.appendChild(document.createTextNode(role.name));
+                    label.appendChild(document.createTextNode(item.name));
                     dropdown.appendChild(label);
                 });
-                updateText();
-            }
+                updateMultiText(container);
+            };
 
-            // Методы доступны снаружи
-            container.populate = populate;
             container.getSelectedIds = () => {
                 return Array.from(dropdown.querySelectorAll('input:checked')).map(cb => cb.value);
             };
+
             container.setSelectedIds = (ids) => {
-                const checkboxes = dropdown.querySelectorAll('input');
-                checkboxes.forEach(cb => cb.checked = ids.includes(cb.value));
-                updateText();
+                dropdown.querySelectorAll('input').forEach(cb => {
+                    cb.checked = ids.includes(cb.value);
+                });
+                updateMultiText(container);
             };
+
+            function updateMultiText(cont) {
+                const checked = cont.querySelectorAll('input:checked');
+                const names = Array.from(checked).map(cb => cb.parentElement.textContent.trim());
+                cont.querySelector('.select-header span').textContent = names.length > 0 ? names.join(', ') : 'Выберите роли';
+            }
         }
 
-        // Инициализировать все кастомные списки
-        for (const [cmd, container] of Object.entries(customSelects)) {
-            initCustomSelect(container, cmd);
+        // Инициализация всех одиночных
+        singleSelects.forEach(select => initSingleSelect(select));
+
+        // Инициализация всех множественных
+        for (const container of Object.values(customSelectsMulti)) {
+            initMultiSelect(container);
         }
 
         // Утилиты загрузки
@@ -639,28 +724,21 @@
             if (res.status === 403) { showForbidden(); return; }
             if (!res.ok) throw new Error('Ошибка загрузки каналов');
             const channels = await res.json();
-            selectElement.innerHTML = '<option value="">-- выберите канал --</option>';
-            channels.forEach(ch => {
-                const opt = document.createElement('option'); opt.value = ch.id; opt.textContent = ch.name;
-                selectElement.appendChild(opt);
-            });
+            allChannels = channels;
+            selectElement.setItems(channels, '-- выберите канал --');
         }
 
-        async function loadRolesIntoSelect(selectElement) {
+        async function loadRoles(selectElement, defaultText = '-- без роли --') {
             const url = `/api/roles?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { headers });
             if (res.status === 403) { showForbidden(); return; }
             if (!res.ok) throw new Error('Ошибка загрузки ролей');
             const roles = await res.json();
-            allRoles = roles; // сохраняем для кастомных списков
-            selectElement.innerHTML = '<option value="">-- без роли --</option>';
-            roles.forEach(r => {
-                const opt = document.createElement('option'); opt.value = r.id; opt.textContent = r.name;
-                selectElement.appendChild(opt);
-            });
-            // Заполним все кастомные списки
-            for (const container of Object.values(customSelects)) {
-                container.populate([]);
+            allRoles = roles;
+            selectElement.setItems(roles, defaultText);
+            // также обновим все множественные списки модерации
+            for (const container of Object.values(customSelectsMulti)) {
+                container.setItems(roles, []); // сброс выбранных при загрузке ролей
             }
         }
 
@@ -670,11 +748,8 @@
             if (res.status === 403) { showForbidden(); return; }
             if (!res.ok) throw new Error('Ошибка загрузки категорий');
             const categories = await res.json();
-            selectElement.innerHTML = '<option value="">-- выберите категорию --</option>';
-            categories.forEach(cat => {
-                const opt = document.createElement('option'); opt.value = cat.id; opt.textContent = cat.name;
-                selectElement.appendChild(opt);
-            });
+            allCategories = categories;
+            selectElement.setItems(categories, '-- выберите категорию --');
         }
 
         // Загрузка конфигов
@@ -684,7 +759,7 @@
             if (res.status === 403) { showForbidden(); return; }
             const cfg = await res.json();
             welcomeEnabledCheck.checked = cfg.welcomeEnabled !== false;
-            if (cfg.welcomeChannelId) welcomeChannelSelect.value = cfg.welcomeChannelId;
+            if (cfg.welcomeChannelId) welcomeChannelSelect.setValue(cfg.welcomeChannelId);
             welcomeMessageText.value = cfg.welcomeMessage || 'Добро пожаловать, {user}, на сервер!';
         }
 
@@ -693,8 +768,8 @@
             const res = await fetch(url, { headers });
             if (res.status === 403) { showForbidden(); return; }
             const cfg = await res.json();
-            if (cfg.memberRoleId) memberRoleSelect.value = cfg.memberRoleId;
-            if (cfg.unverifiedRoleId) unverifiedRoleSelect.value = cfg.unverifiedRoleId;
+            if (cfg.memberRoleId) memberRoleSelect.setValue(cfg.memberRoleId);
+            if (cfg.unverifiedRoleId) unverifiedRoleSelect.setValue(cfg.unverifiedRoleId);
         }
 
         async function loadVerifyConfig() {
@@ -703,8 +778,8 @@
             if (res.status === 403) { showForbidden(); return; }
             const cfg = await res.json();
             verifyEnabledCheck.checked = cfg.verifyEnabled === true;
-            if (cfg.verifyChannelId) verifyChannelSelect.value = cfg.verifyChannelId;
-            if (cfg.verifiedRoleId) verifiedRoleSelect.value = cfg.verifiedRoleId;
+            if (cfg.verifyChannelId) verifyChannelSelect.setValue(cfg.verifyChannelId);
+            if (cfg.verifiedRoleId) verifiedRoleSelect.setValue(cfg.verifiedRoleId);
         }
 
         async function loadTicketsConfig() {
@@ -713,8 +788,8 @@
             if (res.status === 403) { showForbidden(); return; }
             const cfg = await res.json();
             ticketEnabledCheck.checked = cfg.ticketEnabled === true;
-            if (cfg.ticketChannelId) ticketChannelSelect.value = cfg.ticketChannelId;
-            if (cfg.ticketCategoryId) ticketCategorySelect.value = cfg.ticketCategoryId;
+            if (cfg.ticketChannelId) ticketChannelSelect.setValue(cfg.ticketChannelId);
+            if (cfg.ticketCategoryId) ticketCategorySelect.setValue(cfg.ticketCategoryId);
         }
 
         async function loadModerationConfig() {
@@ -724,7 +799,7 @@
             const cfg = await res.json();
             moderationEnabledCheck.checked = cfg.moderationEnabled === true;
             const rolesMap = cfg.moderationRoles || {};
-            for (const [cmd, container] of Object.entries(customSelects)) {
+            for (const [cmd, container] of Object.entries(customSelectsMulti)) {
                 const allowed = rolesMap[cmd] || [];
                 container.setSelectedIds(allowed);
             }
@@ -734,7 +809,7 @@
         async function saveWelcomeConfig() {
             const body = {
                 welcomeEnabled: welcomeEnabledCheck.checked,
-                welcomeChannelId: welcomeEnabledCheck.checked ? welcomeChannelSelect.value : '',
+                welcomeChannelId: welcomeEnabledCheck.checked ? welcomeChannelSelect.getValue() : '',
                 welcomeMessage: welcomeMessageText.value.trim()
             };
             const url = `/api/config?key=${encodeURIComponent(key)}`;
@@ -746,8 +821,8 @@
 
         async function saveAutoroleConfig() {
             const body = {
-                memberRoleId: memberRoleSelect.value,
-                unverifiedRoleId: unverifiedRoleSelect.value
+                memberRoleId: memberRoleSelect.getValue(),
+                unverifiedRoleId: unverifiedRoleSelect.getValue()
             };
             const url = `/api/config?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -759,8 +834,8 @@
         async function saveVerifyConfig() {
             const body = {
                 verifyEnabled: verifyEnabledCheck.checked,
-                verifyChannelId: verifyChannelSelect.value,
-                verifiedRoleId: verifiedRoleSelect.value
+                verifyChannelId: verifyChannelSelect.getValue(),
+                verifiedRoleId: verifiedRoleSelect.getValue()
             };
             const url = `/api/verifysettings?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -772,8 +847,8 @@
         async function saveTicketsConfig() {
             const body = {
                 ticketEnabled: ticketEnabledCheck.checked,
-                ticketChannelId: ticketChannelSelect.value,
-                ticketCategoryId: ticketCategorySelect.value
+                ticketChannelId: ticketChannelSelect.getValue(),
+                ticketCategoryId: ticketCategorySelect.getValue()
             };
             const url = `/api/ticketsettings?key=${encodeURIComponent(key)}`;
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -784,7 +859,7 @@
 
         async function saveModerationConfig() {
             const moderationRoles = {};
-            for (const [cmd, container] of Object.entries(customSelects)) {
+            for (const [cmd, container] of Object.entries(customSelectsMulti)) {
                 moderationRoles[cmd] = container.getSelectedIds();
             }
             const body = {
@@ -851,15 +926,19 @@
             const testRes = await fetch(testUrl, { headers });
             if (testRes.status === 403) { showForbidden(); return; }
 
+            // Загружаем данные в одиночные списки
             await Promise.all([
                 loadChannels(welcomeChannelSelect),
                 loadChannels(verifyChannelSelect),
                 loadChannels(ticketChannelSelect),
-                loadRolesIntoSelect(memberRoleSelect), // загрузит allRoles и заполнит кастомные списки
-                loadRolesIntoSelect(unverifiedRoleSelect),
-                loadRolesIntoSelect(verifiedRoleSelect),
+                loadRoles(memberRoleSelect, '-- не выбрана --'),
+                loadRoles(unverifiedRoleSelect, '-- не выбрана --'),
+                loadRoles(verifiedRoleSelect, '-- без роли --'),
                 loadCategories(ticketCategorySelect)
             ]);
+
+            // Загружаем роли для модерации (уже загружены через loadRoles, но нужно обновить множественные)
+            // Они были обновлены внутри loadRoles
 
             await loadWelcomeConfig();
             await loadAutoroleConfig();
